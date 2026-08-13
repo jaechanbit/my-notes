@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>내 메모</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="page-header">
+        <div>
+          <h1>📝 내 메모</h1>
+          <p>생각과 할 일을 간단하게 기록해 보세요.</p>
+        </div>
+        <button id="new-note-button" class="primary-button" type="button">새 메모 작성</button>
+      </header>
+
+      <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+      <section class="search-section" aria-label="메모 검색">
+        <label for="search">메모 검색</label>
+        <input id="search" type="search" placeholder="제목이나 내용으로 검색하세요" autocomplete="off" />
+      </section>
+
+      <section aria-labelledby="note-list-title">
+        <div class="list-header">
+          <h2 id="note-list-title">메모 목록</h2>
+          <span id="note-count">0개의 메모</span>
+        </div>
+        <div id="note-list" class="note-list" aria-live="polite"></div>
+        <p id="empty-message" class="empty-message">메모를 불러오는 중입니다.</p>
+      </section>
+    </main>
+
+    <dialog id="note-dialog">
+      <form id="note-form">
+        <div class="dialog-header">
+          <h2 id="dialog-title">새 메모 작성</h2>
+          <button id="close-dialog" class="icon-button" type="button" aria-label="닫기">×</button>
+        </div>
+        <input id="note-id" type="hidden" />
+        <label for="title">제목</label>
+        <input id="title" name="title" type="text" maxlength="200" required />
+        <label for="content">내용</label>
+        <textarea id="content" name="content" rows="8" maxlength="10000" required></textarea>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button id="delete-button" class="delete-button" type="button" hidden>삭제</button>
+          <div class="right-actions">
+            <button id="cancel-button" class="secondary-button" type="button">취소</button>
+            <button id="save-button" class="primary-button" type="submit">저장</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/script.js"></script>
+  </body>
+</html>
