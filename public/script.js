@@ -48,12 +48,26 @@ function renderNotes() {
     const content = document.createElement('p');
     content.textContent = note.content;
     card.append(date, title, content);
+    card.addEventListener('click', () => openExistingNote(note));
     return card;
   }));
 
   noteCount.textContent = `${visibleNotes.length}개의 메모`;
   emptyMessage.textContent = keyword ? '검색 결과가 없습니다.' : '아직 작성한 메모가 없습니다.';
   emptyMessage.hidden = visibleNotes.length !== 0;
+}
+
+function showDialog() {
+  if (typeof dialog.showModal === 'function') {
+    if (!dialog.open) dialog.showModal();
+  } else {
+    dialog.setAttribute('open', '');
+  }
+}
+
+function closeDialog() {
+  if (typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
 }
 
 async function request(url, options) {
@@ -81,34 +95,25 @@ function openNewNote() {
   dialogTitle.textContent = '새 메모 작성';
   deleteButton.hidden = true;
   formError.hidden = true;
-  dialog.showModal();
+  showDialog();
   titleInput.focus();
 }
 
-async function openExistingNote(id) {
-  try {
-    const note = await request(`/api/notes/${id}`);
-    noteIdInput.value = note.id;
-    titleInput.value = note.title;
-    contentInput.value = note.content;
-    dialogTitle.textContent = '메모 수정';
-    deleteButton.hidden = false;
-    formError.hidden = true;
-    dialog.showModal();
-    titleInput.focus();
-  } catch (error) {
-    showMessage(error.message);
-  }
+function openExistingNote(note) {
+  noteIdInput.value = note.id;
+  titleInput.value = note.title;
+  contentInput.value = note.content;
+  dialogTitle.textContent = '메모 수정';
+  deleteButton.hidden = false;
+  formError.hidden = true;
+  showDialog();
+  titleInput.focus();
 }
 
 document.querySelector('#new-note-button').addEventListener('click', openNewNote);
-document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
-document.querySelector('#cancel-button').addEventListener('click', () => dialog.close());
+document.querySelector('#close-dialog').addEventListener('click', closeDialog);
+document.querySelector('#cancel-button').addEventListener('click', closeDialog);
 searchInput.addEventListener('input', renderNotes);
-noteList.addEventListener('click', (event) => {
-  const card = event.target.closest('.note-card');
-  if (card) openExistingNote(card.dataset.id);
-});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -129,7 +134,7 @@ form.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, content }),
     });
-    dialog.close();
+    closeDialog();
     await loadNotes();
     showMessage(id ? '메모를 수정했습니다.' : '메모를 저장했습니다.', 'success');
   } catch (error) {
@@ -146,7 +151,7 @@ deleteButton.addEventListener('click', async () => {
   deleteButton.disabled = true;
   try {
     await request(`/api/notes/${id}`, { method: 'DELETE' });
-    dialog.close();
+    closeDialog();
     await loadNotes();
     showMessage('메모를 삭제했습니다.', 'success');
   } catch (error) {
