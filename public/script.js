@@ -8,12 +8,50 @@ const form = document.querySelector('#note-form');
 const noteIdInput = document.querySelector('#note-id');
 const titleInput = document.querySelector('#title');
 const contentInput = document.querySelector('#content');
+const tagsInput = document.querySelector('#tags');
+const tagFilterList = document.querySelector('#tag-filter-list');
 const dialogTitle = document.querySelector('#dialog-title');
 const formError = document.querySelector('#form-error');
 const deleteButton = document.querySelector('#delete-button');
 const saveButton = document.querySelector('#save-button');
 
 let notes = [];
+let selectedTag = '';
+
+function parseTags(value) {
+  const tags = [];
+  value.split(',').forEach((part) => {
+    const tag = part.trim();
+    if (tag && !tags.some((item) => item.toLocaleLowerCase('ko') === tag.toLocaleLowerCase('ko'))) {
+      tags.push(tag);
+    }
+  });
+  return tags;
+}
+
+function renderTagFilters() {
+  const allTags = [];
+  notes.forEach((note) => (note.tags || []).forEach((tag) => {
+    if (!allTags.some((item) => item.toLocaleLowerCase('ko') === tag.toLocaleLowerCase('ko'))) {
+      allTags.push(tag);
+    }
+  }));
+  allTags.sort((a, b) => a.localeCompare(b, 'ko'));
+
+  const makeButton = (label, value) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `tag-filter-button${selectedTag === value ? ' active' : ''}`;
+    button.textContent = label;
+    button.setAttribute('aria-pressed', selectedTag === value);
+    button.addEventListener('click', () => {
+      selectedTag = value;
+      renderNotes();
+    });
+    return button;
+  };
+  tagFilterList.replaceChildren(makeButton('전체', ''), ...allTags.map((tag) => makeButton(tag, tag)));
+}
 
 function showMessage(text, type = 'error') {
   message.textContent = text;
@@ -32,7 +70,8 @@ function formatDate(value) {
 function renderNotes() {
   const keyword = searchInput.value.trim().toLocaleLowerCase('ko');
   const visibleNotes = notes
-    .filter(({ title, content }) => `${title} ${content}`.toLocaleLowerCase('ko').includes(keyword))
+    .filter(({ title, content, tags = [] }) => `${title} ${content} ${tags.join(' ')}`.toLocaleLowerCase('ko').includes(keyword))
+    .filter(({ tags = [] }) => !selectedTag || tags.some((tag) => tag.toLocaleLowerCase('ko') === selectedTag.toLocaleLowerCase('ko')))
     .sort((a, b) => Number(b.favorite) - Number(a.favorite)
       || new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
       || b.id - a.id);
@@ -54,6 +93,21 @@ function renderNotes() {
     title.textContent = note.title;
     const content = document.createElement('p');
     content.textContent = note.content;
+    const tagList = document.createElement('div');
+    tagList.className = 'note-tags';
+    (note.tags || []).forEach((tag) => {
+      const tagButton = document.createElement('button');
+      tagButton.type = 'button';
+      tagButton.className = 'tag-badge';
+      tagButton.textContent = tag;
+      tagButton.setAttribute('aria-label', `${tag} 태그로 필터링`);
+      tagButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        selectedTag = tag;
+        renderNotes();
+      });
+      tagList.append(tagButton);
+    });
     openButton.append(date, title, content);
     openButton.addEventListener('click', () => openExistingNote(note));
 
@@ -65,12 +119,13 @@ function renderNotes() {
     favoriteButton.setAttribute('aria-pressed', Boolean(note.favorite));
     favoriteButton.addEventListener('click', () => toggleFavorite(note));
 
-    card.append(openButton, favoriteButton);
+    card.append(openButton, tagList, favoriteButton);
     return card;
   }));
 
+  renderTagFilters();
   noteCount.textContent = `${visibleNotes.length}개의 메모`;
-  emptyMessage.textContent = keyword ? '검색 결과가 없습니다.' : '아직 작성한 메모가 없습니다.';
+  emptyMessage.textContent = keyword || selectedTag ? '조건에 맞는 메모가 없습니다.' : '아직 작성한 메모가 없습니다.';
   emptyMessage.hidden = visibleNotes.length !== 0;
 }
 
@@ -139,6 +194,7 @@ function openExistingNote(note) {
   noteIdInput.value = note.id;
   titleInput.value = note.title;
   contentInput.value = note.content;
+  tagsInput.value = (note.tags || []).join(', ');
   dialogTitle.textContent = '메모 수정';
   deleteButton.hidden = false;
   formError.hidden = true;
@@ -155,8 +211,14 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const title = titleInput.value.trim();
   const content = contentInput.value.trim();
+  const tags = parseTags(tagsInput.value);
   if (!title || !content) {
     formError.textContent = '제목과 내용을 모두 입력해 주세요.';
+    formError.hidden = false;
+    return;
+  }
+  if (tags.length > 20 || tags.some((tag) => tag.length > 30)) {
+    formError.textContent = '태그는 각각 30자 이하, 최대 20개까지 입력해 주세요.';
     formError.hidden = false;
     return;
   }
@@ -168,7 +230,7 @@ form.addEventListener('submit', async (event) => {
     await request(id ? `/api/notes/${id}` : '/api/notes', {
       method: id ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title, content, tags }),
     });
     closeDialog();
     await loadNotes();

@@ -21,6 +21,10 @@
       <section class="search-section" aria-label="메모 검색">
         <label for="search">메모 검색</label>
         <input id="search" type="search" placeholder="제목이나 내용으로 검색하세요" autocomplete="off" />
+        <div class="tag-filter" aria-label="태그 필터">
+          <span class="tag-filter-label">태그</span>
+          <div id="tag-filter-list" class="tag-filter-list"></div>
+        </div>
       </section>
 
       <section aria-labelledby="note-list-title">
@@ -44,6 +48,9 @@
         <input id="title" name="title" type="text" maxlength="200" required />
         <label for="content">내용</label>
         <textarea id="content" name="content" rows="8" maxlength="10000" required></textarea>
+        <label for="tags">태그</label>
+        <input id="tags" name="tags" type="text" maxlength="619" placeholder="서버, 개발, 우분투" aria-describedby="tags-help" />
+        <small id="tags-help" class="field-help">쉼표로 구분해 입력하세요. 태그당 최대 30자, 최대 20개</small>
         <p id="form-error" class="form-error" role="alert" hidden></p>
         <div class="form-actions">
           <button id="delete-button" class="delete-button" type="button" hidden>삭제</button>

@@ -17,15 +17,19 @@ database.exec(`
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     favorite INTEGER NOT NULL DEFAULT 0,
+    tags TEXT NOT NULL DEFAULT '[]',
     created_at TEXT,
     updated_at TEXT
   )
 `);
 
-// 기존 데이터베이스에는 favorite 컬럼만 안전하게 추가한다.
+// 기존 데이터베이스에는 필요한 컬럼을 기본값과 함께 안전하게 추가한다.
 const noteColumns = database.prepare('PRAGMA table_info(notes)').all();
 if (!noteColumns.some(({ name }) => name === 'favorite')) {
   database.exec('ALTER TABLE notes ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0');
+}
+if (!noteColumns.some(({ name }) => name === 'tags')) {
+  database.exec("ALTER TABLE notes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
 }
 
 app.use(express.json({ limit: '1mb' }));
@@ -43,14 +47,40 @@ function validateNote(body) {
     return { error: '제목과 내용을 모두 입력해 주세요.' };
   }
 
-  return { title, content };
+  if (body?.tags !== undefined && !Array.isArray(body.tags)) {
+    return { error: '태그 형식이 올바르지 않습니다.' };
+  }
+
+  const tags = [];
+  for (const value of body?.tags || []) {
+    if (typeof value !== 'string') return { error: '태그 형식이 올바르지 않습니다.' };
+    const tag = value.trim();
+    if (!tag) continue;
+    if (tag.length > 30) return { error: '태그는 각각 30자 이하로 입력해 주세요.' };
+    if (!tags.some((item) => item.toLocaleLowerCase('ko') === tag.toLocaleLowerCase('ko'))) {
+      tags.push(tag);
+    }
+  }
+  if (tags.length > 20) return { error: '태그는 최대 20개까지 입력할 수 있습니다.' };
+
+  return { title, content, tags };
+}
+
+function formatNote(row) {
+  if (!row) return row;
+  try {
+    const tags = JSON.parse(row.tags || '[]');
+    return { ...row, tags: Array.isArray(tags) ? tags : [] };
+  } catch {
+    return { ...row, tags: [] };
+  }
 }
 
 app.get('/api/notes', (req, res) => {
   const notes = database
     .prepare('SELECT * FROM notes ORDER BY favorite DESC, updated_at DESC, id DESC')
     .all();
-  res.json(notes);
+  res.json(notes.map(formatNote));
 });
 
 app.get('/api/notes/:id', (req, res) => {
@@ -60,7 +90,7 @@ app.get('/api/notes/:id', (req, res) => {
   const note = database.prepare('SELECT * FROM notes WHERE id = ?').get(id);
   if (!note) return res.status(404).json({ message: '메모를 찾을 수 없습니다.' });
 
-  res.json(note);
+  res.json(formatNote(note));
 });
 
 app.post('/api/notes', (req, res) => {
@@ -69,10 +99,10 @@ app.post('/api/notes', (req, res) => {
 
   const now = new Date().toISOString();
   const result = database
-    .prepare('INSERT INTO notes (title, content, created_at, updated_at) VALUES (?, ?, ?, ?)')
-    .run(note.title, note.content, now, now);
+    .prepare('INSERT INTO notes (title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run(note.title, note.content, JSON.stringify(note.tags), now, now);
   const created = database.prepare('SELECT * FROM notes WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(created);
+  res.status(201).json(formatNote(created));
 });
 
 app.put('/api/notes/:id', (req, res) => {
@@ -83,11 +113,11 @@ app.put('/api/notes/:id', (req, res) => {
   if (note.error) return res.status(400).json({ message: note.error });
 
   const result = database
-    .prepare('UPDATE notes SET title = ?, content = ?, updated_at = ? WHERE id = ?')
-    .run(note.title, note.content, new Date().toISOString(), id);
+    .prepare('UPDATE notes SET title = ?, content = ?, tags = ?, updated_at = ? WHERE id = ?')
+    .run(note.title, note.content, JSON.stringify(note.tags), new Date().toISOString(), id);
   if (result.changes === 0) return res.status(404).json({ message: '메모를 찾을 수 없습니다.' });
 
-  res.json(database.prepare('SELECT * FROM notes WHERE id = ?').get(id));
+  res.json(formatNote(database.prepare('SELECT * FROM notes WHERE id = ?').get(id)));
 });
 
 app.patch('/api/notes/:id/favorite', (req, res) => {
@@ -102,7 +132,7 @@ app.patch('/api/notes/:id/favorite', (req, res) => {
     .run(req.body.favorite ? 1 : 0, id);
   if (result.changes === 0) return res.status(404).json({ message: '메모를 찾을 수 없습니다.' });
 
-  res.json(database.prepare('SELECT * FROM notes WHERE id = ?').get(id));
+  res.json(formatNote(database.prepare('SELECT * FROM notes WHERE id = ?').get(id)));
 });
 
 app.delete('/api/notes/:id', (req, res) => {

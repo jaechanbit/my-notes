@@ -92,6 +92,48 @@ textarea:focus-visible {
   background: white;
 }
 
+.tag-filter {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.tag-filter-label {
+  flex: none;
+  padding-top: 5px;
+  color: #607d8b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.tag-filter-list,
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tag-filter-button,
+.tag-badge {
+  border: 1px solid #bfd5ce;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #356657;
+  background: #eef7f4;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.tag-filter-button:hover,
+.tag-filter-button.active,
+.tag-badge:hover {
+  border-color: #247a61;
+  color: white;
+  background: #247a61;
+}
+
 .message {
   margin: -12px 0 24px;
   border-radius: 10px;
@@ -205,6 +247,15 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.note-tags {
+  margin: -8px 20px 20px;
+}
+
+.tag-badge {
+  position: relative;
+  z-index: 1;
+}
+
 .empty-message {
   border: 1px dashed #b7c8c3;
   border-radius: 14px;
@@ -273,6 +324,12 @@ dialog::backdrop {
   background: white;
 }
 
+.field-help {
+  display: block;
+  margin-top: 5px;
+  color: #78909c;
+}
+
 #note-form textarea {
   resize: vertical;
 }
@@ -337,6 +394,17 @@ button:disabled {
 
   .note-open-button {
     min-height: 0;
+  }
+
+  .tag-filter {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .tag-filter-button,
+  .tag-badge {
+    min-height: 36px;
+    padding: 7px 12px;
   }
 
   #note-form {
