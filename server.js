@@ -77,8 +77,20 @@ function formatNote(row) {
 }
 
 app.get('/api/notes', (req, res) => {
+  const sortOrders = {
+    newest: 'COALESCE(updated_at, created_at) DESC, id DESC',
+    oldest: 'COALESCE(updated_at, created_at) ASC, id ASC',
+    favorite: 'favorite DESC, COALESCE(updated_at, created_at) DESC, id DESC',
+    'title-asc': 'title COLLATE NOCASE ASC, id ASC',
+    'title-desc': 'title COLLATE NOCASE DESC, id DESC',
+  };
+  const sort = typeof req.query.sort === 'string' ? req.query.sort : 'newest';
+  if (!Object.hasOwn(sortOrders, sort)) {
+    return res.status(400).json({ message: '올바른 정렬 기준이 아닙니다.' });
+  }
+
   const notes = database
-    .prepare('SELECT * FROM notes ORDER BY favorite DESC, updated_at DESC, id DESC')
+    .prepare(`SELECT * FROM notes ORDER BY ${sortOrders[sort]}`)
     .all();
   res.json(notes.map(formatNote));
 });

@@ -1,4 +1,5 @@
 const searchInput = document.querySelector('#search');
+const sortSelect = document.querySelector('#sort');
 const noteList = document.querySelector('#note-list');
 const noteCount = document.querySelector('#note-count');
 const emptyMessage = document.querySelector('#empty-message');
@@ -17,6 +18,19 @@ const saveButton = document.querySelector('#save-button');
 
 let notes = [];
 let selectedTag = '';
+const SORT_STORAGE_KEY = 'my-notes-sort';
+const SORT_OPTIONS = new Set(['newest', 'oldest', 'favorite', 'title-asc', 'title-desc']);
+
+function loadSavedSort() {
+  try {
+    const savedSort = window.localStorage.getItem(SORT_STORAGE_KEY);
+    return SORT_OPTIONS.has(savedSort) ? savedSort : 'newest';
+  } catch {
+    return 'newest';
+  }
+}
+
+sortSelect.value = loadSavedSort();
 
 function parseTags(value) {
   const tags = [];
@@ -67,14 +81,36 @@ function formatDate(value) {
     .format(new Date(value));
 }
 
+function noteTime(note) {
+  const time = Date.parse(note.updated_at || note.created_at || '');
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function compareNotes(a, b) {
+  const newestFirst = () => noteTime(b) - noteTime(a) || Number(b.id) - Number(a.id);
+
+  switch (sortSelect.value) {
+    case 'oldest':
+      return noteTime(a) - noteTime(b) || Number(a.id) - Number(b.id);
+    case 'favorite':
+      return Number(b.favorite) - Number(a.favorite) || newestFirst();
+    case 'title-asc':
+      return a.title.localeCompare(b.title, 'ko', { sensitivity: 'base', numeric: true })
+        || Number(a.id) - Number(b.id);
+    case 'title-desc':
+      return b.title.localeCompare(a.title, 'ko', { sensitivity: 'base', numeric: true })
+        || Number(b.id) - Number(a.id);
+    default:
+      return newestFirst();
+  }
+}
+
 function renderNotes() {
   const keyword = searchInput.value.trim().toLocaleLowerCase('ko');
   const visibleNotes = notes
     .filter(({ title, content, tags = [] }) => `${title} ${content} ${tags.join(' ')}`.toLocaleLowerCase('ko').includes(keyword))
     .filter(({ tags = [] }) => !selectedTag || tags.some((tag) => tag.toLocaleLowerCase('ko') === selectedTag.toLocaleLowerCase('ko')))
-    .sort((a, b) => Number(b.favorite) - Number(a.favorite)
-      || new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
-      || b.id - a.id);
+    .sort(compareNotes);
 
   noteList.replaceChildren(...visibleNotes.map((note) => {
     const card = document.createElement('article');
@@ -172,7 +208,7 @@ async function request(url, options) {
 
 async function loadNotes() {
   try {
-    notes = await request('/api/notes');
+    notes = await request(`/api/notes?sort=${encodeURIComponent(sortSelect.value)}`);
     renderNotes();
   } catch (error) {
     emptyMessage.textContent = '메모를 불러오지 못했습니다.';
@@ -206,6 +242,14 @@ document.querySelector('#new-note-button').addEventListener('click', openNewNote
 document.querySelector('#close-dialog').addEventListener('click', closeDialog);
 document.querySelector('#cancel-button').addEventListener('click', closeDialog);
 searchInput.addEventListener('input', renderNotes);
+sortSelect.addEventListener('change', () => {
+  try {
+    window.localStorage.setItem(SORT_STORAGE_KEY, sortSelect.value);
+  } catch {
+    // 저장소를 사용할 수 없어도 현재 페이지의 정렬은 유지한다.
+  }
+  renderNotes();
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

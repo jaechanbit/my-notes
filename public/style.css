@@ -15,7 +15,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -68,7 +69,8 @@ h1 {
 
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+select:focus-visible {
   outline: 3px solid #84cdb8;
   outline-offset: 2px;
 }
@@ -152,10 +154,16 @@ textarea:focus-visible {
 
 .list-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 14px;
+}
+
+.list-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .list-header h2 {
@@ -167,6 +175,28 @@ textarea:focus-visible {
 .note-meta {
   color: #78909c;
   font-size: 0.9rem;
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-control label {
+  color: #607d8b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sort-control select {
+  min-height: 42px;
+  border: 1px solid #c8d5d1;
+  border-radius: 10px;
+  padding: 8px 34px 8px 12px;
+  color: #263238;
+  background: white;
+  cursor: pointer;
 }
 
 .note-list {
@@ -386,6 +416,20 @@ button:disabled {
 
   .note-list {
     grid-template-columns: 1fr;
+  }
+
+  .list-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .list-summary {
+    justify-content: space-between;
+  }
+
+  .sort-control select {
+    flex: 1;
   }
 
   .note-card {

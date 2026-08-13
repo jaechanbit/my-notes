@@ -29,8 +29,20 @@
 
       <section aria-labelledby="note-list-title">
         <div class="list-header">
-          <h2 id="note-list-title">메모 목록</h2>
-          <span id="note-count">0개의 메모</span>
+          <div class="list-summary">
+            <h2 id="note-list-title">메모 목록</h2>
+            <span id="note-count">0개의 메모</span>
+          </div>
+          <div class="sort-control">
+            <label for="sort">정렬</label>
+            <select id="sort">
+              <option value="newest">최신순</option>
+              <option value="oldest">오래된순</option>
+              <option value="favorite">즐겨찾기 우선</option>
+              <option value="title-asc">제목 오름차순</option>
+              <option value="title-desc">제목 내림차순</option>
+            </select>
+          </div>
         </div>
         <div id="note-list" class="note-list" aria-live="polite"></div>
         <p id="empty-message" class="empty-message">메모를 불러오는 중입니다.</p>
