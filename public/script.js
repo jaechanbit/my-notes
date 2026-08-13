@@ -31,14 +31,21 @@ function formatDate(value) {
 
 function renderNotes() {
   const keyword = searchInput.value.trim().toLocaleLowerCase('ko');
-  const visibleNotes = notes.filter(({ title, content }) =>
-    `${title} ${content}`.toLocaleLowerCase('ko').includes(keyword));
+  const visibleNotes = notes
+    .filter(({ title, content }) => `${title} ${content}`.toLocaleLowerCase('ko').includes(keyword))
+    .sort((a, b) => Number(b.favorite) - Number(a.favorite)
+      || new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+      || b.id - a.id);
 
   noteList.replaceChildren(...visibleNotes.map((note) => {
-    const card = document.createElement('button');
-    card.type = 'button';
+    const card = document.createElement('article');
     card.className = 'note-card';
     card.dataset.id = note.id;
+
+    const openButton = document.createElement('button');
+    openButton.type = 'button';
+    openButton.className = 'note-open-button';
+    openButton.setAttribute('aria-label', `${note.title} 메모 열기`);
 
     const date = document.createElement('span');
     date.className = 'note-meta';
@@ -47,14 +54,43 @@ function renderNotes() {
     title.textContent = note.title;
     const content = document.createElement('p');
     content.textContent = note.content;
-    card.append(date, title, content);
-    card.addEventListener('click', () => openExistingNote(note));
+    openButton.append(date, title, content);
+    openButton.addEventListener('click', () => openExistingNote(note));
+
+    const favoriteButton = document.createElement('button');
+    favoriteButton.type = 'button';
+    favoriteButton.className = 'favorite-button';
+    favoriteButton.textContent = note.favorite ? '★' : '☆';
+    favoriteButton.setAttribute('aria-label', note.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가');
+    favoriteButton.setAttribute('aria-pressed', Boolean(note.favorite));
+    favoriteButton.addEventListener('click', () => toggleFavorite(note));
+
+    card.append(openButton, favoriteButton);
     return card;
   }));
 
   noteCount.textContent = `${visibleNotes.length}개의 메모`;
   emptyMessage.textContent = keyword ? '검색 결과가 없습니다.' : '아직 작성한 메모가 없습니다.';
   emptyMessage.hidden = visibleNotes.length !== 0;
+}
+
+async function toggleFavorite(note) {
+  const previousFavorite = Number(note.favorite);
+  note.favorite = previousFavorite ? 0 : 1;
+  renderNotes();
+
+  try {
+    const updated = await request(`/api/notes/${note.id}/favorite`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ favorite: Boolean(note.favorite) }),
+    });
+    Object.assign(note, updated);
+  } catch (error) {
+    note.favorite = previousFavorite;
+    renderNotes();
+    showMessage(error.message);
+  }
 }
 
 function showDialog() {

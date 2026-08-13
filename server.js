@@ -16,10 +16,17 @@ database.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
+    favorite INTEGER NOT NULL DEFAULT 0,
     created_at TEXT,
     updated_at TEXT
   )
 `);
+
+// 기존 데이터베이스에는 favorite 컬럼만 안전하게 추가한다.
+const noteColumns = database.prepare('PRAGMA table_info(notes)').all();
+if (!noteColumns.some(({ name }) => name === 'favorite')) {
+  database.exec('ALTER TABLE notes ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0');
+}
 
 app.use(express.json({ limit: '1mb' }));
 
@@ -41,7 +48,7 @@ function validateNote(body) {
 
 app.get('/api/notes', (req, res) => {
   const notes = database
-    .prepare('SELECT * FROM notes ORDER BY updated_at DESC, id DESC')
+    .prepare('SELECT * FROM notes ORDER BY favorite DESC, updated_at DESC, id DESC')
     .all();
   res.json(notes);
 });
@@ -78,6 +85,21 @@ app.put('/api/notes/:id', (req, res) => {
   const result = database
     .prepare('UPDATE notes SET title = ?, content = ?, updated_at = ? WHERE id = ?')
     .run(note.title, note.content, new Date().toISOString(), id);
+  if (result.changes === 0) return res.status(404).json({ message: '메모를 찾을 수 없습니다.' });
+
+  res.json(database.prepare('SELECT * FROM notes WHERE id = ?').get(id));
+});
+
+app.patch('/api/notes/:id/favorite', (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ message: '올바른 메모 ID가 아닙니다.' });
+  if (req.body?.favorite !== true && req.body?.favorite !== false) {
+    return res.status(400).json({ message: '즐겨찾기 상태가 올바르지 않습니다.' });
+  }
+
+  const result = database
+    .prepare('UPDATE notes SET favorite = ? WHERE id = ?')
+    .run(req.body.favorite ? 1 : 0, id);
   if (result.changes === 0) return res.status(404).json({ message: '메모를 찾을 수 없습니다.' });
 
   res.json(database.prepare('SELECT * FROM notes WHERE id = ?').get(id));
