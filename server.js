@@ -1,17 +1,33 @@
 const express = require('express');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 
+require('dotenv').config({ quiet: true });
+
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 const HOST = '0.0.0.0';
 const dataDirectory = path.join(__dirname, 'data');
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (!sessionSecret) {
+  throw new Error('SESSION_SECRET 환경변수를 설정해 주세요.');
+}
 
 fs.mkdirSync(dataDirectory, { recursive: true });
 
 const database = new DatabaseSync(path.join(dataDirectory, 'notes.db'));
 database.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -23,6 +39,28 @@ database.exec(`
   )
 `);
 
+const userCount = database.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+if (userCount === 0) {
+  const adminUsername = process.env.ADMIN_USERNAME?.trim();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminUsername || !adminPassword) {
+    throw new Error('첫 실행에는 ADMIN_USERNAME과 ADMIN_PASSWORD 환경변수를 설정해 주세요.');
+  }
+  if (adminUsername.length > 100) {
+    throw new Error('ADMIN_USERNAME은 100자 이하로 설정해 주세요.');
+  }
+  if (adminPassword.length < 8) {
+    throw new Error('ADMIN_PASSWORD는 8자 이상으로 설정해 주세요.');
+  }
+
+  const passwordHash = bcrypt.hashSync(adminPassword, 12);
+  database
+    .prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)')
+    .run(adminUsername, passwordHash, new Date().toISOString());
+  console.log(`초기 관리자 계정 '${adminUsername}'을 생성했습니다.`);
+}
+
 // 기존 데이터베이스에는 필요한 컬럼을 기본값과 함께 안전하게 추가한다.
 const noteColumns = database.prepare('PRAGMA table_info(notes)').all();
 if (!noteColumns.some(({ name }) => name === 'favorite')) {
@@ -33,6 +71,72 @@ if (!noteColumns.some(({ name }) => name === 'tags')) {
 }
 
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
+app.use(session({
+  name: 'my-notes.sid',
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  },
+}));
+
+function requireApiLogin(req, res, next) {
+  if (req.session.userId) return next();
+  return res.status(401).json({ message: '로그인이 필요합니다.' });
+}
+
+function requirePageLogin(req, res, next) {
+  if (req.session.userId) return next();
+  return res.redirect('/login');
+}
+
+app.get('/login', (req, res) => {
+  if (req.session.userId) return res.redirect('/');
+  return res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/style.css', (req, res) => res.sendFile(path.join(__dirname, 'public', 'style.css')));
+app.get('/login.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.js')));
+
+app.post('/api/auth/login', (req, res, next) => {
+  const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const user = username
+    ? database.prepare('SELECT id, username, password_hash FROM users WHERE username = ?').get(username)
+    : null;
+
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    return res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+  }
+
+  return req.session.regenerate((error) => {
+    if (error) return next(error);
+    req.session.userId = Number(user.id);
+    req.session.username = user.username;
+    return req.session.save((saveError) => {
+      if (saveError) return next(saveError);
+      return res.json({ username: user.username });
+    });
+  });
+});
+
+app.use('/api', requireApiLogin);
+
+app.get('/api/auth/session', (req, res) => {
+  res.json({ username: req.session.username });
+});
+
+app.post('/api/auth/logout', (req, res, next) => {
+  req.session.destroy((error) => {
+    if (error) return next(error);
+    res.clearCookie('my-notes.sid');
+    return res.status(204).end();
+  });
+});
 
 function parseId(value) {
   const id = Number(value);
@@ -161,6 +265,7 @@ app.use('/api', (req, res) => {
   res.status(404).json({ message: '요청한 API를 찾을 수 없습니다.' });
 });
 
+app.use(requirePageLogin);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((error, req, res, next) => {

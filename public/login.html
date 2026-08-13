@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>로그인 | 내 메모</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-card">
+      <h1>📝 내 메모</h1>
+      <p class="login-description">내 메모를 보려면 로그인해 주세요.</p>
+      <form id="login-form" class="login-form">
+        <label for="username">아이디</label>
+        <input id="username" name="username" type="text" maxlength="100" autocomplete="username" required autofocus />
+
+        <label for="password">비밀번호</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+        <button id="login-button" class="primary-button" type="submit">로그인</button>
+        <p id="login-error" class="login-error" role="alert" hidden></p>
+      </form>
+    </main>
+    <script src="/login.js"></script>
+  </body>
+</html>

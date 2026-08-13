@@ -15,6 +15,7 @@ const dialogTitle = document.querySelector('#dialog-title');
 const formError = document.querySelector('#form-error');
 const deleteButton = document.querySelector('#delete-button');
 const saveButton = document.querySelector('#save-button');
+const currentUser = document.querySelector('#current-user');
 
 let notes = [];
 let selectedTag = '';
@@ -199,11 +200,20 @@ function closeDialog() {
 
 async function request(url, options) {
   const response = await fetch(url, options);
+  if (response.status === 401) {
+    window.location.replace('/login');
+    throw new Error('로그인이 필요합니다.');
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.message || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.');
   }
   return response.status === 204 ? null : response.json();
+}
+
+async function loadSession() {
+  const session = await request('/api/auth/session');
+  currentUser.textContent = session.username;
 }
 
 async function loadNotes() {
@@ -304,4 +314,13 @@ deleteButton.addEventListener('click', async () => {
   }
 });
 
-loadNotes();
+document.querySelector('#logout-button').addEventListener('click', async () => {
+  try {
+    await request('/api/auth/logout', { method: 'POST' });
+    window.location.replace('/login');
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+Promise.all([loadSession(), loadNotes()]).catch((error) => showMessage(error.message));

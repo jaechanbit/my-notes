@@ -52,6 +52,21 @@ h1 {
   color: #607d8b;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.current-user {
+  max-width: 160px;
+  color: #607d8b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .primary-button {
   flex: none;
   border: 0;
@@ -65,6 +80,76 @@ h1 {
 
 .primary-button:hover {
   background: #1b614d;
+}
+
+.secondary-button {
+  border: 1px solid #c8d5d1;
+  border-radius: 10px;
+  padding: 11px 16px;
+  color: #38534b;
+  background: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #edf4f2;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.login-card {
+  width: min(100%, 420px);
+  border: 1px solid #dce6e3;
+  border-radius: 18px;
+  padding: 36px;
+  background: white;
+  box-shadow: 0 12px 36px rgb(35 67 57 / 10%);
+}
+
+.login-card h1 {
+  margin-bottom: 8px;
+  font-size: 2rem;
+}
+
+.login-description {
+  margin-bottom: 28px;
+  color: #607d8b;
+}
+
+.login-form label {
+  display: block;
+  margin: 16px 0 7px;
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #c8d5d1;
+  border-radius: 10px;
+  padding: 11px 13px;
+  color: #263238;
+  background: white;
+}
+
+.login-form .primary-button {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 24px;
+}
+
+.login-error {
+  margin: 18px 0 0;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #842029;
+  background: #f8d7da;
 }
 
 button:focus-visible,
@@ -414,6 +499,20 @@ button:disabled {
     width: 100%;
   }
 
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    justify-content: stretch;
+  }
+
+  .header-actions .primary-button {
+    grid-column: 1 / -1;
+  }
+
+  .current-user {
+    align-self: center;
+  }
+
   .note-list {
     grid-template-columns: 1fr;
   }
@@ -453,6 +552,10 @@ button:disabled {
 
   #note-form {
     padding: 20px;
+  }
+
+  .login-card {
+    padding: 28px 22px;
   }
 
   .form-actions {
